@@ -1,6 +1,6 @@
 import os
 from typing import Dict, List, Any, Optional
-from flask import Flask, jsonify, Response
+from flask import Flask, jsonify, Response, request
 from models import init_db, db, Dog, Breed
 
 # Get the server directory path
@@ -15,12 +15,21 @@ init_db(app)
 
 @app.route('/api/dogs', methods=['GET'])
 def get_dogs() -> Response:
+    status_filter: Optional[str] = request.args.get('status')
+    name_filter: Optional[str] = request.args.get('name')
     query = db.session.query(
         Dog.id, 
         Dog.name, 
-        Breed.name.label('breed')
+        Breed.name.label('breed'),
+        Dog.status
     ).join(Breed, Dog.breed_id == Breed.id)
     
+    if status_filter == "available":
+        query = query.filter(Dog.status == "AVAILABLE")  # If Enum, use .name
+
+    if name_filter:
+        query = query.filter(Dog.name.ilike(f"%{name_filter}%"))
+
     dogs_query = query.all()
     
     # Convert the result to a list of dictionaries
@@ -65,7 +74,24 @@ def get_dog(id: int) -> tuple[Response, int] | Response:
     
     return jsonify(dog)
 
-## HERE
+@app.route('/api/breeds', methods=['GET'])
+def get_breeds() -> Response:
+    breeds_query = db.session.query(Breed).all()
+    breeds_list = [{'id': breed.id, 'name': breed.name} for breed in breeds_query]
+    return jsonify(breeds_list)
+
+def validate_dog_age(age: int) -> None:
+    """
+    Validates that the dog's age is between 0 and 20 (inclusive).
+
+    Args:
+        age (int): The age of the dog.
+
+    Raises:
+        ValueError: If age is not between 0 and 20.
+    """
+    if not (0 <= age <= 20):
+        raise ValueError("Dog age must be between 0 and 20 (inclusive).")
 
 if __name__ == '__main__':
     app.run(debug=True, port=5100) # Port 5100 to avoid macOS conflicts

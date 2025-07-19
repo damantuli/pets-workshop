@@ -10,11 +10,24 @@
     export let dogs: Dog[] = [];
     let loading = true;
     let error: string | null = null;
+    let filter: string = "all";
+    let nameFilter: string = "";
 
     const fetchDogs = async () => {
         loading = true;
         try {
-            const response = await fetch('/api/dogs');
+            let url = '/api/dogs';
+            const params: string[] = [];
+            if (filter === "available") {
+                params.push("status=available");
+            }
+            if (nameFilter.trim().length > 0) {
+                params.push(`name=${encodeURIComponent(nameFilter.trim())}`);
+            }
+            if (params.length > 0) {
+                url += "?" + params.join("&");
+            }
+            const response = await fetch(url);
             if(response.ok) {
                 dogs = await response.json();
             } else {
@@ -30,10 +43,33 @@
     onMount(() => {
         fetchDogs();
     });
+
+    $: if (filter !== undefined || nameFilter !== undefined) {
+        fetchDogs();
+    }
 </script>
 
 <div>
-    <h2 class="text-2xl font-medium mb-6 text-slate-100">Available Dogs</h2>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+        <h2 class="text-2xl font-medium text-slate-100">Available Dogs</h2>
+        <div class="flex gap-3 items-center">
+            <label for="dog-filter" class="text-slate-300">Show:</label>
+            <select
+                id="dog-filter"
+                class="bg-slate-800 text-slate-100 border border-slate-700 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                bind:value={filter}
+            >
+                <option value="all">All</option>
+                <option value="available">Available for Adoption</option>
+            </select>
+            <input
+                type="text"
+                placeholder="Filter by name"
+                class="bg-slate-800 text-slate-100 border border-slate-700 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                bind:value={nameFilter}
+            />
+        </div>
+    </div>
     
     {#if loading}
         <!-- loading animation -->
